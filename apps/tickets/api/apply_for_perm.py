@@ -1,54 +1,70 @@
-from rest_framework import viewsets
-from django.shortcuts import get_object_or_404
 from django.db.transaction import atomic
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
+from common.const.http import POST
+from common.drf.api import JmsModelViewSet
 from common.permissions import IsValidUser
 from common.utils.django import get_object_or_none
 from perms.models.asset_permission import AssetPermission, Asset
 from assets.models.user import SystemUser
-from ..exceptions import AssetsIpsNotMatch, SystemUserNotFound
+from ..exceptions import AssetsIpsNotMatch, SystemUserNotFound, TicketClosed, TicketActionYet
 from .. import serializers
 from ..models import Ticket
+from ..permissions import IsAssignee
 
 
-class TicketBaseViewSet(viewsets.ModelViewSet):
+class ApplyForPermViewSet(JmsModelViewSet):
     queryset = Ticket.objects.all()
+    serializer_class = serializers.ApplyForPermSerializer
     permission_classes = (IsValidUser,)
     filter_fields = ['status', 'title', 'action', 'user_display']
     search_fields = ['user_display', 'title']
 
+    def _check_can_set_action(self, instance, action):
+        if instance.status == instance.STATUS_CLOSED:
+            raise TicketClosed()
+        if instance.action == action:
+            raise TicketActionYet()  # TODO
 
-class ApplyForPermViewSet(TicketBaseViewSet):
-    serializer_class = serializers.ApplyForPermSerializer
+    @action(detail=True, methods=[POST], permission_classes=[IsAssignee, IsValidUser])
+    def reject(self, request, *args, **kwargs):
+        instance = self.get_object()
+        action = instance.ACTION_REJECT
+        self._check_can_set_action(instance, action)
+        instance.perform_action(action, request.user)
+        return Response()
 
-    @atomic()
-    def perform_update(self, serializer):
-        old_action = serializer.instance.action
-        serializer.save()
-        new_action = serializer.instance.action
+    @action(detail=True, methods=[POST], permission_classes=[IsAssignee, IsValidUser])
+    def approve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        action = instance.ACTION_APPROVE
+        self._check_can_set_action(instance, action)
 
-        if old_action == '' and new_action == Ticket.ACTION_APPROVE:
-            meta = serializer.instance.meta
-            assets = list(Asset.objects.filter(ip__in=meta['ips']))
-            if len(assets) != len(meta['ips']):
-                raise AssetsIpsNotMatch()
+        meta = instance.meta
+        assets = list(Asset.objects.filter(ip__in=meta['ips']))
+        if len(assets) != len(meta['ips']):
+            raise AssetsIpsNotMatch()
 
-            system_user = get_object_or_none(SystemUser, username=meta['system_user'])
-            if system_user is None:
-                raise SystemUserNotFound()
+        system_user = get_object_or_none(SystemUser, username=meta['system_user'])
+        if system_user is None:
+            raise SystemUserNotFound()
 
-            kwargs = {
-                'name': meta.get('name'),
-                'created_by': self.request.user.username
-            }
+        ap_kwargs = {
+            'name': meta.get('name'),
+            'created_by': self.request.user.username
+        }
+        date_start = meta.get('date_start')
+        date_expired = meta.get('date_expired')
+        if date_start:
+            ap_kwargs['date_start'] = date_start
+        if date_expired:
+            ap_kwargs['date_expired'] = date_expired
 
-            date_start = meta.get('date_start')
-            date_expired = meta.get('date_expired')
-            if date_start:
-                kwargs['date_start'] = date_start
-            if date_expired:
-                kwargs['date_expired'] = date_expired
-
-            ap = AssetPermission.objects.create(**kwargs)
-            ap.assets.add(*assets)
+        with atomic():
+            instance.perform_action(instance.ACTION_APPROVE, request.user)
+            ap = AssetPermission.objects.create(**ap_kwargs)
             ap.system_users.add(system_user)
+            ap.assets.add(*assets)
+
+        return Response()

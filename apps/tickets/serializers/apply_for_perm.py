@@ -1,14 +1,12 @@
 from rest_framework import serializers
-from django.db.models import When, Case
 from django.utils.translation import ugettext_lazy as _
 
 from assets.models.asset import Asset
 from assets.models.user import SystemUser
-from .ticket import TicketMixin
 from ..models import Ticket
 
 
-class ApplyForPermSerializer(TicketMixin, serializers.ModelSerializer):
+class ApplyForPermSerializer(serializers.ModelSerializer):
     name = serializers.CharField(max_length=128, source='meta.name', default='')
     ips = serializers.ListField(child=serializers.IPAddressField(), source='meta.ips', default=list)
     system_user = serializers.CharField(max_length=64, source='meta.system_user', default=None)
@@ -33,8 +31,8 @@ class ApplyForPermSerializer(TicketMixin, serializers.ModelSerializer):
 
         fields = mini_fields + small_fields + m2m_fields
         read_only_fields = [
-            'user_display', 'assignees_display',
-            'date_created', 'date_updated',
+            'user_display', 'assignees_display', 'type', 'user',
+            'date_created', 'date_updated', 'action'
         ]
         extra_kwargs = {
             'status': {'label': _('Status')},
