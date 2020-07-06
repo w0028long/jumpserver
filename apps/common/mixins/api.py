@@ -245,9 +245,13 @@ class SerializerMixin2:
             serializer_class = self.serializer_classes.get(
                 self.action, self.serializer_classes.get('default')
             )
-            assert serializer_class, f'''If you use `serializer_classes` dict, you should
-            contains `{self.action}` or `default` in it.
-            '''
+
+            if isinstance(serializer_class, dict):
+                serializer_class = serializer_class.get(
+                    self.request.method.lower, serializer_class.get('default')
+                )
+
+            assert serializer_class, '`serializer_classes` config error'
             return serializer_class
         return super().get_serializer_class()
 

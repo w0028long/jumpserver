@@ -25,7 +25,7 @@ class ApplyForPermViewSet(JmsModelViewSet):
         if instance.status == instance.STATUS_CLOSED:
             raise TicketClosed()
         if instance.action == action:
-            raise TicketActionYet()  # TODO
+            raise TicketActionYet()
 
     @action(detail=True, methods=[POST], permission_classes=[IsAssignee, IsValidUser])
     def reject(self, request, *args, **kwargs):
