@@ -255,7 +255,7 @@ class Config(dict):
         'DEFAULT_ORG_SHOW_ALL_USERS': True,
         'PERIOD_TASK_ENABLE': True,
         'FORCE_SCRIPT_NAME': '',
-        'LOGIN_CONFIRM_ENABLE': False,
+        'LOGIN_CONFIRM_ENABLE': True,
         'WINDOWS_SKIP_ALL_MANUAL_PASSWORD': False,
         'ORG_CHANGE_TO_URL': '',
         'LANGUAGE_CODE': 'zh',

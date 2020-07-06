@@ -8,25 +8,36 @@ from .. import models
 __all__ = ['TicketSerializer', 'CommentSerializer']
 
 
-class TicketSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Ticket
-        fields = [
-            'id', 'user', 'user_display', 'title', 'body',
-            'assignees', 'assignees_display', 'assignee', 'assignee_display',
-            'status', 'action', 'date_created', 'date_updated',
-            'type', 'type_display', 'action_display',
-        ]
-        read_only_fields = [
-            'user_display', 'assignees_display',
-            'date_created', 'date_updated',
-        ]
-        extra_kwargs = {
-            'status': {'label': _('Status')},
-            'action': {'label': _('Action')},
-            'user_display': {'label': _('User')}
-        }
+class TicketMeta:
+    model = models.Ticket
+    mini_fields = ['id']
+    small_fields = [
+        'title', 'body', 'status', 'action', 'date_created',
+        'date_updated', 'type', 'type_display', 'action_display'
+    ]
+    m2m_fields = [
+        'user', 'user_display', 'assignees', 'assignees_display',
+        'assignee', 'assignee_display'
+    ]
 
+    fields = [
+        'id', 'user', 'user_display', 'title', 'body',
+        'assignees', 'assignees_display', 'assignee', 'assignee_display',
+        'status', 'action', 'date_created', 'date_updated',
+        'type', 'type_display', 'action_display',
+    ]
+    read_only_fields = [
+        'user_display', 'assignees_display',
+        'date_created', 'date_updated',
+    ]
+    extra_kwargs = {
+        'status': {'label': _('Status')},
+        'action': {'label': _('Action')},
+        'user_display': {'label': _('User')}
+    }
+
+
+class TicketMixin:
     def create(self, validated_data):
         validated_data.pop('action')
         return super().create(validated_data)
@@ -44,6 +55,26 @@ class TicketSerializer(serializers.ModelSerializer):
         if not instance.status == instance.STATUS_CLOSED and action:
             instance.perform_action(action, user)
         return instance
+
+
+class TicketSerializer(TicketMixin, serializers.ModelSerializer):
+    class Meta:
+        model = models.Ticket
+        fields = [
+            'id', 'user', 'user_display', 'title', 'body',
+            'assignees', 'assignees_display', 'assignee', 'assignee_display',
+            'status', 'action', 'date_created', 'date_updated',
+            'type', 'type_display', 'action_display',
+        ]
+        read_only_fields = [
+            'user_display', 'assignees_display',
+            'date_created', 'date_updated',
+        ]
+        extra_kwargs = {
+            'status': {'label': _('Status')},
+            'action': {'label': _('Action')},
+            'user_display': {'label': _('User')}
+        }
 
 
 class CurrentTicket(object):
