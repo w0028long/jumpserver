@@ -20,11 +20,11 @@ class Ticket(CommonModelMixin):
     )
     TYPE_GENERAL = 'general'
     TYPE_LOGIN_CONFIRM = 'login_confirm'
-    TYPE_APPLY_FOR_PERM = 'apply_for_perm'
+    TYPE_REQUEST_ASSET_PERM = 'request_asset_perm'
     TYPE_CHOICES = (
         (TYPE_GENERAL, _("General")),
         (TYPE_LOGIN_CONFIRM, _("Login confirm")),
-        (TYPE_APPLY_FOR_PERM, _('Apply for permission'))
+        (TYPE_REQUEST_ASSET_PERM, _('Request asset permission'))
     )
     ACTION_APPROVE = 'approve'
     ACTION_REJECT = 'reject'

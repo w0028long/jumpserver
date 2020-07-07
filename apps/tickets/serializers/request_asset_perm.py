@@ -8,7 +8,7 @@ class RequestAssetPermTicketSerializer(serializers.ModelSerializer):
     ips = serializers.ListField(child=serializers.IPAddressField(), source='meta.ips',
                                 default=list, label=_('IPs'))
     host_name = serializers.CharField(max_length=256, source='meta.host_name', default=None,
-                                      allow_blank=True, label=_('Host name'))
+                                      allow_blank=True, label=_('Hostname'))
     date_start = serializers.DateTimeField(source='meta.date_start', allow_null=True,
                                            required=False, label=_('Date start'))
     date_expired = serializers.DateTimeField(source='meta.date_expired', allow_null=True,
