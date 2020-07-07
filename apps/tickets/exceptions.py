@@ -1,11 +1,15 @@
 from common.exceptions import JmsException
 
 
-class AssetsIpsNotMatch(JmsException):
+class NotHaveConfirmedAssets(JmsException):
     pass
 
 
-class SystemUserNotFound(JmsException):
+class ConfirmedAssetsChanged(JmsException):
+    pass
+
+
+class ConfirmedSystemUserChanged(JmsException):
     pass
 
 

@@ -6,17 +6,23 @@ from common.const.http import POST
 from common.drf.api import JmsModelViewSet
 from common.permissions import IsValidUser
 from common.utils.django import get_object_or_none
+from common.drf.serializers import EmptySerializer
 from perms.models.asset_permission import AssetPermission, Asset
 from assets.models.user import SystemUser
-from ..exceptions import AssetsIpsNotMatch, SystemUserNotFound, TicketClosed, TicketActionYet
+from ..exceptions import (ConfirmedAssetsChanged, ConfirmedSystemUserChanged,
+                          TicketClosed, TicketActionYet, NotHaveConfirmedAssets)
 from .. import serializers
 from ..models import Ticket
 from ..permissions import IsAssignee
 
 
 class ApplyForPermViewSet(JmsModelViewSet):
-    queryset = Ticket.objects.all()
-    serializer_class = serializers.ApplyForPermSerializer
+    queryset = Ticket.objects.filter(type=Ticket.TYPE_APPLY_FOR_PERM)
+    serializer_classes = {
+        'default': serializers.RequestAssetPermTicketSerializer,
+        'approve': EmptySerializer,
+        'reject': EmptySerializer,
+    }
     permission_classes = (IsValidUser,)
     filter_fields = ['status', 'title', 'action', 'user_display']
     search_fields = ['user_display', 'title']
@@ -42,16 +48,20 @@ class ApplyForPermViewSet(JmsModelViewSet):
         self._check_can_set_action(instance, action)
 
         meta = instance.meta
-        assets = list(Asset.objects.filter(ip__in=meta['ips']))
-        if len(assets) != len(meta['ips']):
-            raise AssetsIpsNotMatch()
+        confirmed_assets = meta['confirmed_assets']
+        assets = list(Asset.objects.filter(id__in=confirmed_assets))
+        if not assets:
+            raise NotHaveConfirmedAssets()
 
-        system_user = get_object_or_none(SystemUser, username=meta['system_user'])
+        if len(assets) != len(confirmed_assets):
+            raise ConfirmedAssetsChanged()
+
+        system_user = get_object_or_none(SystemUser, id=meta['confirmed_system_user'])
         if system_user is None:
-            raise SystemUserNotFound()
+            raise ConfirmedSystemUserChanged()
 
         ap_kwargs = {
-            'name': meta.get('name'),
+            'name': meta.get('name', ''),
             'created_by': self.request.user.username
         }
         date_start = meta.get('date_start')

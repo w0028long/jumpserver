@@ -1,38 +1,40 @@
 from rest_framework import serializers
 from django.utils.translation import ugettext_lazy as _
 
-from assets.models.asset import Asset
-from assets.models.user import SystemUser
 from ..models import Ticket
 
 
-class ApplyForPermSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(max_length=128, source='meta.name', default='')
+class RequestAssetPermTicketSerializer(serializers.ModelSerializer):
     ips = serializers.ListField(child=serializers.IPAddressField(), source='meta.ips', default=list)
-    system_user = serializers.CharField(max_length=64, source='meta.system_user', default=None)
-    date_start = serializers.DateTimeField(source='meta.date_start', default=None)
-    date_expired = serializers.DateTimeField(source='meta.date_expired', default=None)
+    host_name = serializers.CharField(max_length=256, source='meta.host_name', default=None, allow_blank=True)
+    date_start = serializers.DateTimeField(source='meta.date_start', allow_null=True, required=False)
+    date_expired = serializers.DateTimeField(source='meta.date_expired', allow_null=True, required=False)
 
-    assets = serializers.SerializerMethodField()
-    system_user_exist = serializers.SerializerMethodField()
+    confirmed_assets = serializers.ListField(child=serializers.UUIDField(),
+                                             source='meta.confirmed_assets',
+                                             default=list, required=False)
+    confirmed_system_user = serializers.ListField(child=serializers.UUIDField(),
+                                                  source='meta.confirmed_system_user',
+                                                  default=list, required=False)
 
     class Meta:
         model = Ticket
         mini_fields = ['id']
         small_fields = [
             'title', 'status', 'action', 'date_created', 'date_updated',
-            'type', 'type_display', 'action_display', 'ips', 'system_user',
-            'date_start', 'date_expired'
+            'type', 'type_display', 'action_display', 'ips', 'confirmed_assets',
+            'date_start', 'date_expired', 'confirmed_system_user', 'host_name'
         ]
         m2m_fields = [
             'user', 'user_display', 'assignees', 'assignees_display',
-            'assignee', 'assignee_display', 'assets', 'system_user_exist'
+            'assignee', 'assignee_display'
         ]
 
         fields = mini_fields + small_fields + m2m_fields
         read_only_fields = [
-            'user_display', 'assignees_display', 'type', 'user',
-            'date_created', 'date_updated', 'action'
+            'user_display', 'assignees_display', 'type', 'user', 'status',
+            'date_created', 'date_updated', 'action', 'id', 'assignee',
+            'assignee_display',
         ]
         extra_kwargs = {
             'status': {'label': _('Status')},
@@ -45,17 +47,31 @@ class ApplyForPermSerializer(serializers.ModelSerializer):
         validated_data['user'] = self.context['request'].user
         return super().create(validated_data)
 
-    def get_system_user_exist(self, obj: Ticket):
-        if not self._is_assignee(obj):
-            return None
-        return SystemUser.objects.filter(username=obj.meta['system_user']).exists()
+    def save(self, **kwargs):
+        meta = self.validated_data.get('meta', {})
+        date_start = meta.get('date_start')
+        if date_start:
+            meta['date_start'] = date_start.strftime('%Y-%m-%d %H:%M:%S%z')
+
+        date_expired = meta.get('date_expired')
+        if date_expired:
+            meta['date_expired'] = date_expired.strftime('%Y-%m-%d %H:%M:%S%z')
+
+        return super().save(**kwargs)
+
+    def update(self, instance, validated_data):
+        new_meta = validated_data['meta']
+        if not self._is_assignee(instance):
+            new_meta.pop('confirmed_assets', None)
+            new_meta.pop('confirmed_system_user', None)
+        old_meta = instance.meta
+        meta = {}
+        meta.update(old_meta)
+        meta.update(new_meta)
+        validated_data['meta'] = meta
+
+        return super().update(instance, validated_data)
 
     def _is_assignee(self, obj: Ticket):
         user = self.context['request'].user
         return obj.is_assignee(user)
-
-    def get_assets(self, obj: Ticket):
-        if not self._is_assignee(obj):
-            return None
-        assets = Asset.objects.filter(ip__in=obj.meta['ips'])
-        return [{'ip': asset.ip, 'hostname': asset.hostname} for asset in assets]
