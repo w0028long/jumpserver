@@ -48,7 +48,7 @@ class RequestAssetPermTicketSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        validated_data['type'] = self.Meta.model.TYPE_APPLY_FOR_PERM
+        validated_data['type'] = self.Meta.model.TYPE_REQUEST_ASSET_PERM
         validated_data['user'] = self.context['request'].user
         return super().create(validated_data)
 
