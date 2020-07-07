@@ -5,17 +5,22 @@ from ..models import Ticket
 
 
 class RequestAssetPermTicketSerializer(serializers.ModelSerializer):
-    ips = serializers.ListField(child=serializers.IPAddressField(), source='meta.ips', default=list)
-    host_name = serializers.CharField(max_length=256, source='meta.host_name', default=None, allow_blank=True)
-    date_start = serializers.DateTimeField(source='meta.date_start', allow_null=True, required=False)
-    date_expired = serializers.DateTimeField(source='meta.date_expired', allow_null=True, required=False)
-
+    ips = serializers.ListField(child=serializers.IPAddressField(), source='meta.ips',
+                                default=list, label=_('IPs'))
+    host_name = serializers.CharField(max_length=256, source='meta.host_name', default=None,
+                                      allow_blank=True, label=_('Host name'))
+    date_start = serializers.DateTimeField(source='meta.date_start', allow_null=True,
+                                           required=False, label=_('Date start'))
+    date_expired = serializers.DateTimeField(source='meta.date_expired', allow_null=True,
+                                             required=False, label=_('Date expired'))
     confirmed_assets = serializers.ListField(child=serializers.UUIDField(),
                                              source='meta.confirmed_assets',
-                                             default=list, required=False)
+                                             default=list, required=False,
+                                             label=_('Confirmed assets'))
     confirmed_system_user = serializers.ListField(child=serializers.UUIDField(),
                                                   source='meta.confirmed_system_user',
-                                                  default=list, required=False)
+                                                  default=list, required=False,
+                                                  label=_('Confirmed system user'))
 
     class Meta:
         model = Ticket

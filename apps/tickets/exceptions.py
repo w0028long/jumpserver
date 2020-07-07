@@ -9,6 +9,10 @@ class ConfirmedAssetsChanged(JmsException):
     pass
 
 
+class NotHaveConfirmedSystemUser(JmsException):
+    pass
+
+
 class ConfirmedSystemUserChanged(JmsException):
     pass
 

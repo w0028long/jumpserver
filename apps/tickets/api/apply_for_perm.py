@@ -1,4 +1,5 @@
 from django.db.transaction import atomic
+from django.utils.translation import ugettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -10,13 +11,14 @@ from common.drf.serializers import EmptySerializer
 from perms.models.asset_permission import AssetPermission, Asset
 from assets.models.user import SystemUser
 from ..exceptions import (ConfirmedAssetsChanged, ConfirmedSystemUserChanged,
-                          TicketClosed, TicketActionYet, NotHaveConfirmedAssets)
+                          TicketClosed, TicketActionYet, NotHaveConfirmedAssets,
+                          NotHaveConfirmedSystemUser)
 from .. import serializers
 from ..models import Ticket
 from ..permissions import IsAssignee
 
 
-class ApplyForPermViewSet(JmsModelViewSet):
+class RequestAssetPermTicketViewSet(JmsModelViewSet):
     queryset = Ticket.objects.filter(type=Ticket.TYPE_APPLY_FOR_PERM)
     serializer_classes = {
         'default': serializers.RequestAssetPermTicketSerializer,
@@ -29,9 +31,10 @@ class ApplyForPermViewSet(JmsModelViewSet):
 
     def _check_can_set_action(self, instance, action):
         if instance.status == instance.STATUS_CLOSED:
-            raise TicketClosed()
+            raise TicketClosed(detail=_('Ticket closed'))
         if instance.action == action:
-            raise TicketActionYet()
+            action_display = dict(instance.ACTION_CHOICES).get(action)
+            raise TicketActionYet(detail=_('Ticket has %s') % action_display)
 
     @action(detail=True, methods=[POST], permission_classes=[IsAssignee, IsValidUser])
     def reject(self, request, *args, **kwargs):
@@ -51,14 +54,18 @@ class ApplyForPermViewSet(JmsModelViewSet):
         confirmed_assets = meta['confirmed_assets']
         assets = list(Asset.objects.filter(id__in=confirmed_assets))
         if not assets:
-            raise NotHaveConfirmedAssets()
+            raise NotHaveConfirmedAssets(detail=_('Confirm assets first'))
 
         if len(assets) != len(confirmed_assets):
-            raise ConfirmedAssetsChanged()
+            raise ConfirmedAssetsChanged(detail=_('Confirmed assets changed'))
 
-        system_user = get_object_or_none(SystemUser, id=meta['confirmed_system_user'])
+        confirmed_system_user = meta['confirmed_system_user']
+        if not confirmed_system_user:
+            raise NotHaveConfirmedSystemUser(detail=_('Confirm system-user first'))
+
+        system_user = get_object_or_none(SystemUser, id=confirmed_system_user)
         if system_user is None:
-            raise ConfirmedSystemUserChanged()
+            raise ConfirmedSystemUserChanged(detail=_('Confirmed system-user changed'))
 
         ap_kwargs = {
             'name': meta.get('name', ''),
