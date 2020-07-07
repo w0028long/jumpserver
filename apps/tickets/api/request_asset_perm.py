@@ -19,7 +19,7 @@ from ..permissions import IsAssignee
 
 
 class RequestAssetPermTicketViewSet(JmsModelViewSet):
-    queryset = Ticket.objects.filter(type=Ticket.TYPE_APPLY_FOR_PERM)
+    queryset = Ticket.objects.filter(type=Ticket.TYPE_REQUEST_ASSET_PERM)
     serializer_classes = {
         'default': serializers.RequestAssetPermTicketSerializer,
         'approve': EmptySerializer,
